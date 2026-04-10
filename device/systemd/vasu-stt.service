@@ -1,0 +1,17 @@
+[Unit]
+Description=VASU Speech-to-Text Service
+After=sound.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/python3 -c "from stt_client import STTClient; s = STTClient(); import time; time.sleep(999999)"
+WorkingDirectory=/opt/vasu/orchestrator
+Restart=always
+RestartSec=3
+Nice=-10
+OOMScoreAdjust=-500
+MemoryMin=200M
+Environment=PYTHONPATH=/opt/vasu/orchestrator
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,17 @@
+[Unit]
+Description=VASU Text-to-Speech Service
+After=sound.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/python3 -c "from tts_client import TTSClient; t = TTSClient(); import time; time.sleep(999999)"
+WorkingDirectory=/opt/vasu/orchestrator
+Restart=always
+RestartSec=3
+Nice=-10
+OOMScoreAdjust=-500
+MemoryMin=100M
+Environment=PYTHONPATH=/opt/vasu/orchestrator
+
+[Install]
+WantedBy=multi-user.target

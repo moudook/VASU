@@ -1,0 +1,17 @@
+[Unit]
+Description=VASU Wake Word Listener
+After=sound.target
+Wants=sound.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/python3 /opt/vasu/orchestrator/wake_word.py
+Restart=always
+RestartSec=3
+Nice=-20
+OOMScoreAdjust=-1000
+MemoryMin=50M
+Environment=PYTHONPATH=/opt/vasu/orchestrator
+
+[Install]
+WantedBy=multi-user.target

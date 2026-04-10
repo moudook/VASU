@@ -1,0 +1,17 @@
+[Unit]
+Description=VASU Main Orchestrator Daemon
+After=vasu-wake.service vasu-stt.service vasu-tts.service
+Requires=vasu-wake.service
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/python3 /opt/vasu/orchestrator/vasu_daemon.py
+WorkingDirectory=/opt/vasu/orchestrator
+Restart=always
+RestartSec=5
+Nice=0
+OOMScoreAdjust=0
+Environment=PYTHONPATH=/opt/vasu/orchestrator
+
+[Install]
+WantedBy=multi-user.target
