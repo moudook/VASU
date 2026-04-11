@@ -108,6 +108,10 @@ TTS_DATASETS = [
     # Piper TTS data — these may need special handling
     {"name": "AI4Bharat/IndicTTS", "subset": "hi",
      "save_dir": f"{DATASETS_DIR}/tts/indic_tts_hi"},
+    # Playful voice training: 80 hours professional a cappella singing (no instruments)
+    # Adds natural musicality, vibrato, and playful tonal quality to TTS voice
+    {"name": "GTSinger/GTSinger", "subset": "en",
+     "save_dir": f"{DATASETS_DIR}/tts/gtsinger_en"},
 ]
 
 VLM_DATASETS = [

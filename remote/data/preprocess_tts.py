@@ -189,6 +189,40 @@ def run_phonemizer():
         log.warning("espeak-ng not found. Install with: apt-get install espeak-ng")
 
 
+def process_gtsinger():
+    """Process GTSinger singing dataset - adds playful musical quality to TTS voice."""
+    path = f"{DATASETS_DIR}/gtsinger_en"
+    if not os.path.exists(path) or not os.path.exists(f"{path}/.download_complete"):
+        log.warning("GTSinger dataset not available")
+        return []
+
+    log.info("Processing GTSinger a cappella dataset...")
+    entries = []
+
+    audio_idx = 0
+
+    # Walk through all audio files
+    for root, _, files in os.walk(path):
+        for file in files:
+            if file.endswith(".wav"):
+                # Prioritize vibrato samples for natural playful quality
+                if "Vibrato" in root or "Breathy" in root or "Control_Group" in root:
+                    audio_path = os.path.join(root, file)
+                    
+                    # Use neutral text for singing samples - Piper will learn the tone
+                    text = "Natural expressive voice with warm tone."
+
+                    output_filename = f"gtsinger_{audio_idx:06d}.wav"
+                    output_path = os.path.join(WAV_DIR, output_filename)
+                    
+                    if convert_audio(audio_path, output_path):
+                        entries.append((output_filename, text))
+                        audio_idx += 1
+
+    log.info(f"Processed {len(entries)} GTSinger singing samples")
+    return entries
+
+
 def main():
     log.info("╔══════════════════════════════════════╗")
     log.info("║   VASU TTS DATA PREPROCESSING        ║")
@@ -202,6 +236,10 @@ def main():
     # Process IndicTTS
     entries = process_indic_tts()
     all_entries.extend(entries)
+    
+    # Process GTSinger a cappella dataset for playful voice quality
+    gts_entries = process_gtsinger()
+    all_entries.extend(gts_entries)
 
     if not all_entries:
         log.error("No TTS training data available!")
