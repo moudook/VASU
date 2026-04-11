@@ -162,8 +162,8 @@ def train():
     training_args = TrainingArguments(
         output_dir=CHECKPOINT_DIR,
         num_train_epochs=3,
-        per_device_train_batch_size=32,
-        gradient_accumulation_steps=4,
+        per_device_train_batch_size=128,  # Optimized for MI300X 192GB VRAM
+        gradient_accumulation_steps=2,
         learning_rate=2e-4,
         lr_scheduler_type="cosine",
         warmup_steps=100,
@@ -172,12 +172,13 @@ def train():
         logging_steps=50,
         save_steps=500,
         save_total_limit=3,
-        dataloader_num_workers=4,
+        dataloader_num_workers=10,  # Use 20 vCPU effectively
         gradient_checkpointing=True,
         report_to="none",  # Set to "wandb" to enable W&B
         # run_name="vasu-llm-stage1",
         remove_unused_columns=False,
         ddp_find_unused_parameters=False,
+        optim="adamw_torch_fused",  # Fused optimizer for MI300X
     )
 
     trainer = Trainer(

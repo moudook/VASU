@@ -2,7 +2,8 @@
 ###############################################################################
 # VASU — GPU Droplet Environment Setup
 # Runs non-interactively. Installs all dependencies for training 4 models.
-# Target: 8x AMD MI300X, ROCm 7.0.0, PyTorch 2.6.0
+# Target: 1x AMD MI300X, ROCm 7.0.0, PyTorch 2.6.0
+# Optimized for 192GB VRAM, 20 vCPU, 240GB RAM
 ###############################################################################
 
 set -euo pipefail
@@ -51,15 +52,21 @@ log "Checking PyTorch ROCm..."
 python3 -c "import torch; assert torch.cuda.is_available(), 'No GPU'" 2>/dev/null && {
     log "PyTorch ROCm already installed and GPUs detected."
 } || {
-    log "Installing PyTorch ROCm 7.0..."
+    log "Installing PyTorch ROCm 7.1 for MI300X..."
     pip install torch torchvision torchaudio \
-        --index-url https://download.pytorch.org/whl/rocm7.0 \
+        --index-url https://download.pytorch.org/whl/rocm7.1 \
         2>&1 | tail -5
 }
 
 # Print GPU info
 python3 -c "
 import torch
+import os
+# Enable MI300X optimizations
+os.environ['PYTORCH_HIP_ALLOC_CONF'] = 'garbage_collection_threshold:0.8,max_split_size_mb:512'
+os.environ['TORCH_NCCL_ASYNC_ERROR_HANDLING'] = '1'
+os.environ['HSA_OVERRIDE_GFX_VERSION'] = '9.4.2'
+
 print(f'PyTorch {torch.__version__}')
 print(f'GPUs: {torch.cuda.device_count()}')
 for i in range(torch.cuda.device_count()):

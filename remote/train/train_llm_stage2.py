@@ -119,8 +119,8 @@ def train():
     training_args = TrainingArguments(
         output_dir=CHECKPOINT_DIR,
         num_train_epochs=3,
-        per_device_train_batch_size=32,
-        gradient_accumulation_steps=4,
+        per_device_train_batch_size=96,  # Optimized for MI300X 192GB VRAM
+        gradient_accumulation_steps=2,
         learning_rate=1e-4,  # Lower LR for continued training
         lr_scheduler_type="cosine",
         warmup_steps=50,
@@ -129,10 +129,11 @@ def train():
         logging_steps=50,
         save_steps=500,
         save_total_limit=3,
-        dataloader_num_workers=4,
+        dataloader_num_workers=10,  # Use 20 vCPU effectively
         gradient_checkpointing=True,
         report_to="none",
         remove_unused_columns=False,
+        optim="adamw_torch_fused",
     )
 
     trainer = Trainer(model=model, args=training_args, train_dataset=tokenized, tokenizer=tokenizer)

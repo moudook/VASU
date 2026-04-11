@@ -109,11 +109,11 @@ def load_teacher_vllm(model_path: str):
         log.info("Loading teacher model via vLLM...")
         llm = LLM(
             model=model_path,
-            tensor_parallel_size=min(4, int(os.environ.get("WORLD_SIZE", "4"))),
-            max_model_len=4096,
-            gpu_memory_utilization=0.85,
+            tensor_parallel_size=1,  # Single MI300X GPU
+            max_model_len=8192,
+            gpu_memory_utilization=0.90,  # Use 90% of 192GB VRAM
             trust_remote_code=True,
-            dtype="auto",
+            dtype="bfloat16",
         )
         return llm, "vllm"
     except Exception as e:
@@ -334,11 +334,17 @@ def main():
 
     log.info(f"Using engine: {engine}")
 
-    generate_fn = {
+    generate_fns = {
         "vllm": generate_batch_vllm,
         "llamacpp": generate_batch_llamacpp,
         "transformers": generate_batch_transformers,
-    }[engine]
+    }
+    
+    if engine not in generate_fns:
+        log.error(f"Unknown engine: {engine}")
+        sys.exit(1)
+        
+    generate_fn = generate_fns[engine]
 
     # Generate conversations
     topic_idx = 0

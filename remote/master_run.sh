@@ -7,6 +7,14 @@
 
 set -uo pipefail
 
+# MI300X Optimizations - Critical for AMD GPUs
+export HSA_OVERRIDE_GFX_VERSION=9.4.2
+export PYTORCH_HIP_ALLOC_CONF=garbage_collection_threshold:0.8,max_split_size_mb:512
+export TORCH_NCCL_ASYNC_ERROR_HANDLING=1
+export PYTORCH_CUDA_ALLOC_CONF=garbage_collection_threshold:0.8,max_split_size_mb:512
+export HIP_VISIBLE_DEVICES=0
+export CUDA_VISIBLE_DEVICES=0
+
 REMOTE_DIR="/home/vasu/remote"
 LOG_DIR="/home/vasu/logs"
 SCRATCH="/scratch/vasu"
