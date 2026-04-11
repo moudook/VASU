@@ -2,7 +2,7 @@
 """
 VASU — VLM Training: SmolVLM-500M Home Environment Fine-tune
 Full fine-tune of SmolVLM-500M-Instruct on home scene VQA data.
-Distributed across 8x MI300X GPUs.
+Single GPU: 1x AMD MI300X (192GB VRAM).
 """
 
 import json
@@ -45,8 +45,12 @@ def train():
     log.info("║  VASU VLM — SmolVLM-500M FINE-TUNE            ║")
     log.info("╚══════════════════════════════════════════════╝")
 
-    num_gpus = torch.cuda.device_count()
-    log.info(f"GPUs: {num_gpus}")
+    # VRAM monitoring — single GPU
+    torch.cuda.empty_cache()
+    torch.cuda.set_per_process_memory_fraction(0.95)
+    allocated = torch.cuda.memory_allocated() / 1e9
+    total = torch.cuda.get_device_properties(0).total_memory / 1e9
+    log.info(f"[VRAM] {allocated:.1f}GB / {total:.1f}GB ({allocated/total*100:.1f}%)")
 
     hf_token = os.environ.get("HF_TOKEN")
 
@@ -175,18 +179,19 @@ def train():
     training_args = TrainingArguments(
         output_dir=CHECKPOINT_DIR,
         max_steps=20000,
-        per_device_train_batch_size=8,
-        gradient_accumulation_steps=8,
+        per_device_train_batch_size=16,   # SmolVLM-500M is tiny, 192GB handles batch 16 easily
+        gradient_accumulation_steps=4,    # Effective: 64
         learning_rate=1e-4,
         lr_scheduler_type="cosine",
+        lr_scheduler_kwargs={"min_lr": 1e-6},  # Prevents catastrophic forgetting
         warmup_steps=200,
         weight_decay=0.01,
         bf16=True,
-        logging_steps=50,
+        logging_steps=100,
         eval_strategy="steps",
         eval_steps=2000,
         save_steps=2000,
-        save_total_limit=3,
+        save_total_limit=2,
         dataloader_num_workers=4,
         gradient_checkpointing=True,
         report_to="none",

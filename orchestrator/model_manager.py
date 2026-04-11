@@ -45,11 +45,35 @@ class ModelManager:
     def _force_gc(self):
         """Force garbage collection to free RAM."""
         gc.collect()
-        try:
-            import ctypes
-            ctypes.CDLL("libc.so.6").malloc_trim(0)
-        except Exception:
-            pass
+        self._try_malloc_trim()
+
+    @staticmethod
+    def _try_malloc_trim():
+        """Try to call malloc_trim on glibc or musl libc (multi-platform)."""
+        import ctypes
+        import ctypes.util
+
+        libc_paths = [
+            ctypes.util.find_library('c'),        # Most portable
+            '/lib/libc.so.6',                     # glibc (standard Linux)
+            '/lib/x86_64-linux-gnu/libc.so.6',   # Debian/Ubuntu
+            '/usr/lib/libc.so',
+            '/lib/libc.musl-x86_64.so.1',        # Alpine/postmarketOS x86
+            '/usr/lib/libc.musl-x86_64.so.1',
+            '/lib/libc.musl-aarch64.so.1',        # Alpine/postmarketOS ARM64
+            '/usr/lib/libc.musl-aarch64.so.1',
+            '/lib/libc.musl-armv7.so.1',          # Alpine/postmarketOS ARMv7 (Redmi 7A)
+            '/usr/lib/libc.musl-armv7.so.1',
+        ]
+        for path in libc_paths:
+            if path and os.path.exists(str(path)):
+                try:
+                    libc = ctypes.CDLL(str(path))
+                    if hasattr(libc, 'malloc_trim'):
+                        libc.malloc_trim(0)
+                    return
+                except OSError:
+                    continue
 
     # ---- LLM (llama.cpp) ----
 

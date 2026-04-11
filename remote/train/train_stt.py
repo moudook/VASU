@@ -2,7 +2,7 @@
 """
 VASU — STT Training: Whisper Small Hindi-English Fine-tune
 Fine-tunes openai/whisper-small on Hindi + Hinglish audio data.
-Distributed across 4 GPUs (STT doesn't need all 8).
+Single GPU: 1x AMD MI300X (192GB VRAM).
 """
 
 import logging
@@ -98,8 +98,12 @@ def train():
     log.info("║  VASU STT — WHISPER SMALL HINDI FINE-TUNE     ║")
     log.info("╚══════════════════════════════════════════════╝")
 
-    num_gpus = torch.cuda.device_count()
-    log.info(f"GPUs: {num_gpus}")
+    # VRAM monitoring — single GPU
+    torch.cuda.empty_cache()
+    torch.cuda.set_per_process_memory_fraction(0.95)
+    allocated = torch.cuda.memory_allocated() / 1e9
+    total = torch.cuda.get_device_properties(0).total_memory / 1e9
+    log.info(f"[VRAM] {allocated:.1f}GB / {total:.1f}GB ({allocated/total*100:.1f}%)")
 
     # Load processor
     processor = WhisperProcessor.from_pretrained(BASE_MODEL, language=LANGUAGE, task=TASK)
@@ -172,7 +176,8 @@ def train():
         per_device_train_batch_size=64,
         gradient_accumulation_steps=2,
         learning_rate=1e-5,
-        lr_scheduler_type="linear",
+        lr_scheduler_type="cosine",
+        lr_scheduler_kwargs={"min_lr": 1e-6},  # Prevents catastrophic forgetting
         warmup_steps=500,
         weight_decay=0.01,
         bf16=True,
@@ -180,7 +185,7 @@ def train():
         eval_strategy="steps" if eval_ds else "no",
         eval_steps=2000 if eval_ds else None,
         save_steps=2000,
-        save_total_limit=3,
+        save_total_limit=2,
         predict_with_generate=True,
         generation_max_length=225,
         dataloader_num_workers=4,

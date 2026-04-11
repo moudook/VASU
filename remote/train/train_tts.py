@@ -117,7 +117,7 @@ def train_with_piper():
         "python3", train_script,
         "--dataset-dir", DATA_DIR,
         "--accelerator", "gpu",
-        "--devices", "2",  # Use 2 GPUs for TTS
+        "--devices", "1",  # Single GPU (1x MI300X)
         "--batch-size", "32",
         "--validation-split", "0.05",
         "--max-epochs", "-1",  # Use max_steps instead
@@ -142,7 +142,9 @@ def train_with_pytorch_lightning():
     try:
         import pytorch_lightning as pl
     except ImportError:
-        os.system("pip install pytorch-lightning")
+        import subprocess as sp
+        sp.run([sys.executable, "-m", "pip", "install", "pytorch-lightning", "--quiet"],
+               capture_output=True, check=True)
         import pytorch_lightning as pl
 
     # VITS training implementation
@@ -285,7 +287,7 @@ def train_with_pytorch_lightning():
     trainer = pl.Trainer(
         max_steps=MAX_STEPS,
         accelerator="gpu",
-        devices=min(2, torch.cuda.device_count()),
+        devices=1,  # Single GPU (1x MI300X)
         precision="bf16-mixed",
         default_root_dir=CHECKPOINT_DIR,
         val_check_interval=10000,

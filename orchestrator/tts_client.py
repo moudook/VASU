@@ -169,37 +169,34 @@ class TTSClient:
             self._speak_espeak(text)
 
     def _speak_onnx(self, text):
-        """Synthesize using ONNX model directly."""
+        """Synthesize using Piper CLI with the ONNX model directly.
+        Piper handles phonemization internally — never compute phoneme IDs manually."""
         try:
-            import onnxruntime as ort
-            import numpy as np
-            import wave
-
-            session = ort.InferenceSession(TTS_MODEL_PATH)
-
-            # Phonemize text
-            phoneme_ids = [ord(c) % 256 for c in text]
-            phoneme_ids = np.array([phoneme_ids], dtype=np.int64)
-
-            # Run inference
-            outputs = session.run(None, {"phoneme_ids": phoneme_ids})
-            audio = outputs[0].squeeze()
-
-            # Normalize to int16
-            audio = (audio * 32767).astype(np.int16)
-
-            # Save and play
-            wav_path = "/tmp/vasu_tts_out.wav"
-            with wave.open(wav_path, "wb") as wf:
-                wf.setnchannels(1)
-                wf.setsampwidth(2)
-                wf.setframerate(SAMPLE_RATE)
-                wf.writeframes(audio.tobytes())
-
-            subprocess.run(
-                ["aplay", "-q", wav_path],
-                timeout=15, capture_output=True,
+            # Use piper CLI which handles phonemization + ONNX inference
+            piper_result = subprocess.run(
+                [PIPER_BIN, "--model", TTS_MODEL_PATH,
+                 "--output_file", "/tmp/vasu_tts_out.wav"],
+                input=text.encode("utf-8"),
+                capture_output=True, timeout=10,
             )
+            if piper_result.returncode == 0:
+                subprocess.run(
+                    ["aplay", "-q", "/tmp/vasu_tts_out.wav"],
+                    timeout=15, capture_output=True,
+                )
+                return
+
+            # If Piper CLI failed, try raw ONNX with espeak-ng phonemization
+            import subprocess as sp
+            phoneme_result = sp.run(
+                ["espeak-ng", "-v", "hi", "-q", "--ipa", text],
+                capture_output=True, text=True, timeout=5,
+            )
+            if phoneme_result.returncode != 0:
+                raise RuntimeError("espeak-ng phonemization failed")
+
+            # Let espeak speak directly as fallback
+            self._speak_espeak(text)
 
         except Exception as e:
             log.error("ONNX TTS error: %s", e)

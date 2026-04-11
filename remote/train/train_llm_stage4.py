@@ -110,6 +110,13 @@ def train():
         base_model = "Qwen/Qwen3-1.7B"
     log.info(f"Base model: {base_model}")
 
+    # VRAM monitoring — single GPU
+    torch.cuda.empty_cache()
+    torch.cuda.set_per_process_memory_fraction(0.95)
+    allocated = torch.cuda.memory_allocated() / 1e9
+    total = torch.cuda.get_device_properties(0).total_memory / 1e9
+    log.info(f"[VRAM] {allocated:.1f}GB / {total:.1f}GB ({allocated/total*100:.1f}%)")
+
     if not os.path.exists(DATA_DIR):
         log.error(f"Dataset not found: {DATA_DIR}")
         sys.exit(1)
@@ -175,15 +182,16 @@ def train():
         training_args = GRPOConfig(
             output_dir=CHECKPOINT_DIR,
             num_train_epochs=1,
-            per_device_train_batch_size=4,
+            per_device_train_batch_size=8,   # 8×4 = 32 effective samples per step
             gradient_accumulation_steps=8,
             learning_rate=5e-5,
             lr_scheduler_type="cosine",
+            lr_scheduler_kwargs={"min_lr": 1e-6},
             warmup_steps=50,
             bf16=True,
             logging_steps=25,
-            save_steps=200,
-            save_total_limit=3,
+            save_steps=800,
+            save_total_limit=2,
             max_completion_length=512,
             num_generations=4,
             report_to="none",
@@ -260,10 +268,11 @@ def train():
                 per_device_train_batch_size=4,
                 gradient_accumulation_steps=8,
                 learning_rate=5e-5,
+                lr_scheduler_kwargs={"min_lr": 1e-6},
                 bf16=True,
                 logging_steps=25,
-                save_steps=200,
-                save_total_limit=3,
+                save_steps=800,
+                save_total_limit=2,
                 report_to="none",
             )
 

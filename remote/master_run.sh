@@ -22,6 +22,7 @@ CHECKPOINT_DIR="$SCRATCH/checkpoints"
 MODELS_DIR="$SCRATCH/models"
 
 source /home/vasu/venv/bin/activate 2>/dev/null || true
+source /home/vasu/.env 2>/dev/null || true
 
 log() {
     echo "[MASTER $(date '+%Y-%m-%d %H:%M:%S')] $*" | tee -a "$LOG_DIR/master_run.log"
@@ -46,6 +47,12 @@ run_step() {
         log "✗ FAILED: $step_name after ${duration} minutes. Check $log_file"
         return 1
     fi
+}
+
+gpu_status() {
+    echo "=== GPU Status ==="
+    rocm-smi 2>/dev/null | head -10 || echo "rocm-smi not available"
+    echo ""
 }
 
 log "╔══════════════════════════════════════════════════════╗"
@@ -196,8 +203,11 @@ log "║         VASU TRAINING PIPELINE COMPLETE              ║"
 log "║         $(date '+%Y-%m-%d %H:%M:%S')                ║"
 log "╚══════════════════════════════════════════════════════╝"
 
-# Write completion marker
+# Write completion markers
 echo "TRAINING_COMPLETE=$(date -Iseconds)" > "$LOG_DIR/completion.marker"
+echo "VASU TRAINING COMPLETE $(date)" >> "$LOG_DIR/COMPLETE.log"
+
+gpu_status
 
 # Remove cron job (no more pushes needed)
 crontab -l 2>/dev/null | grep -v "push_hf.py" | crontab - 2>/dev/null || true

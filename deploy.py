@@ -116,13 +116,37 @@ def upload_files(user: str, ip: str, key: str):
     log("Upload complete.")
 
 
+def _write_remote_env(user: str, ip: str, key: str, hf_token: str):
+    """Write HF_TOKEN to a secure env file on the remote machine (not visible in ps aux)."""
+    import tempfile
+    env_content = f"export HF_TOKEN='{hf_token}'\nexport HF_HUB_ENABLE_HF_TRANSFER=1\n"
+
+    # Create local temp file
+    env_tmp = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".env_remote.tmp")
+    with open(env_tmp, "w") as f:
+        f.write(env_content)
+
+    # SCP to remote
+    scp_cmd = ["scp", "-o", "StrictHostKeyChecking=no"]
+    if key:
+        scp_cmd += ["-i", key]
+    scp_cmd += [env_tmp, f"{user}@{ip}:{REMOTE_BASE}/.env"]
+    subprocess.run(scp_cmd, capture_output=True, check=True)
+
+    # Secure permissions on remote + cleanup local
+    run_ssh(user, ip, key, f"chmod 600 {REMOTE_BASE}/.env", check=False)
+    os.remove(env_tmp)
+    log("HF_TOKEN written to secure remote env file.")
+
+
 def setup_environment(user: str, ip: str, key: str, hf_token: str):
     """Run setup.sh on the droplet."""
     log("Running setup.sh (this may take 15-30 minutes)...")
+    _write_remote_env(user, ip, key, hf_token)
     commands = [
         f"chmod +x {REMOTE_DIR}/setup.sh {REMOTE_DIR}/master_run.sh {REMOTE_DIR}/cron_setup.sh",
         f"chmod +x {REMOTE_DIR}/quantize/*.sh",
-        f"export HF_TOKEN='{hf_token}' && bash {REMOTE_DIR}/setup.sh 2>&1 | tee {LOG_DIR}/setup.log",
+        f"source {REMOTE_BASE}/.env && bash {REMOTE_DIR}/setup.sh 2>&1 | tee {LOG_DIR}/setup.log",
     ]
     for cmd in commands:
         run_ssh(user, ip, key, cmd, stream=True)
@@ -133,7 +157,7 @@ def setup_cron(user: str, ip: str, key: str, hf_token: str):
     """Set up the 5-hour HF push cron job."""
     log("Setting up HF push cron job...")
     run_ssh(user, ip, key,
-            f"export HF_TOKEN='{hf_token}' && bash {REMOTE_DIR}/cron_setup.sh 2>&1 | tee {LOG_DIR}/cron_setup.log",
+            f"source {REMOTE_BASE}/.env && bash {REMOTE_DIR}/cron_setup.sh 2>&1 | tee {LOG_DIR}/cron_setup.log",
             stream=True)
     log("Cron job configured.")
 
@@ -142,13 +166,16 @@ def launch_training(user: str, ip: str, key: str, hf_token: str):
     """Launch master_run.sh inside a tmux session."""
     log("Launching training in tmux session 'vasu_training'...")
 
+    # Ensure remote env file exists
+    _write_remote_env(user, ip, key, hf_token)
+
     # Kill existing session if any
     run_ssh(user, ip, key, "tmux kill-session -t vasu_training 2>/dev/null || true", check=False)
 
-    # Launch new tmux session with HF_TOKEN in environment
+    # Launch tmux session — sources env file instead of passing token on command line
     tmux_cmd = (
         f"tmux new-session -d -s vasu_training "
-        f"\"export HF_TOKEN='{hf_token}' && "
+        f"\"source {REMOTE_BASE}/.env && "
         f"bash {REMOTE_DIR}/master_run.sh 2>&1 | tee {LOG_DIR}/master_run.log\""
     )
     run_ssh(user, ip, key, tmux_cmd)

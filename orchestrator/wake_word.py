@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-VASU - Wake Word Listener
+VASHU - Wake Word Listener
 Always-on wake word detection using openWakeWord.
 Runs at highest priority (nice -20), minimal RAM footprint (~20MB).
 """
@@ -14,9 +14,9 @@ log = logging.getLogger(__name__)
 
 
 class WakeWordListener:
-    """Always-on wake word detector for 'Hey Vasu'."""
+    """Always-on wake word detector for 'Hey Vashu'."""
 
-    def __init__(self, callback=None, wake_word="hey_vasu", threshold=0.5):
+    def __init__(self, callback=None, wake_word="hey_vashu", threshold=0.5):
         self.callback = callback
         self.wake_word = wake_word
         self.threshold = threshold
@@ -113,7 +113,7 @@ class WakeWordListener:
         import struct
 
         porcupine = pvporcupine.create(
-            keywords=["hey google"],  # Closest built-in, will train custom later
+            keywords=["jarvis"],  # Closest built-in to 'hey vashu' — train custom model later
             sensitivities=[0.7],
         )
 

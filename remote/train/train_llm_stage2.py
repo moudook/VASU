@@ -41,6 +41,13 @@ def train():
     base_model = PREV_MODEL if os.path.exists(PREV_MODEL) else "Qwen/Qwen3-1.7B"
     log.info(f"Base model: {base_model}")
 
+    # VRAM monitoring — single GPU
+    torch.cuda.empty_cache()
+    torch.cuda.set_per_process_memory_fraction(0.95)
+    allocated = torch.cuda.memory_allocated() / 1e9
+    total = torch.cuda.get_device_properties(0).total_memory / 1e9
+    log.info(f"[VRAM] {allocated:.1f}GB / {total:.1f}GB ({allocated/total*100:.1f}%)")
+
     if not os.path.exists(DATA_DIR):
         log.error(f"Dataset not found: {DATA_DIR}")
         sys.exit(1)
@@ -119,17 +126,18 @@ def train():
     training_args = TrainingArguments(
         output_dir=CHECKPOINT_DIR,
         num_train_epochs=3,
-        per_device_train_batch_size=96,  # Optimized for MI300X 192GB VRAM
-        gradient_accumulation_steps=2,
+        per_device_train_batch_size=32,   # 192GB VRAM handles this easily
+        gradient_accumulation_steps=4,    # Effective batch: 128
         learning_rate=1e-4,  # Lower LR for continued training
         lr_scheduler_type="cosine",
+        lr_scheduler_kwargs={"min_lr": 1e-6},  # Prevents catastrophic forgetting
         warmup_steps=50,
         weight_decay=0.01,
         bf16=True,
         logging_steps=50,
-        save_steps=500,
-        save_total_limit=3,
-        dataloader_num_workers=10,  # Use 20 vCPU effectively
+        save_steps=800,
+        save_total_limit=2,
+        dataloader_num_workers=8,
         gradient_checkpointing=True,
         report_to="none",
         remove_unused_columns=False,

@@ -2,7 +2,7 @@
 """
 VASU — LLM Training Stage 1: Conversational SFT
 Fine-tunes Qwen3-1.7B on conversational Hinglish data using QLoRA via Unsloth.
-Distributed across 8x MI300X GPUs.
+Single GPU: 1x AMD MI300X (192GB VRAM).
 """
 
 import logging
@@ -38,8 +38,12 @@ def train():
     log.info("║  VASU LLM — STAGE 1: CONVERSATIONAL SFT      ║")
     log.info("╚══════════════════════════════════════════════╝")
 
-    num_gpus = torch.cuda.device_count()
-    log.info(f"GPUs available: {num_gpus}")
+    # VRAM monitoring — single GPU
+    torch.cuda.empty_cache()
+    torch.cuda.set_per_process_memory_fraction(0.95)
+    allocated = torch.cuda.memory_allocated() / 1e9
+    total = torch.cuda.get_device_properties(0).total_memory / 1e9
+    log.info(f"[VRAM] {allocated:.1f}GB / {total:.1f}GB ({allocated/total*100:.1f}%)")
 
     # Load dataset
     log.info(f"Loading dataset from {DATA_DIR}")
@@ -162,22 +166,21 @@ def train():
     training_args = TrainingArguments(
         output_dir=CHECKPOINT_DIR,
         num_train_epochs=3,
-        per_device_train_batch_size=128,  # Optimized for MI300X 192GB VRAM
-        gradient_accumulation_steps=2,
+        per_device_train_batch_size=32,   # 192GB VRAM handles this easily
+        gradient_accumulation_steps=4,    # Effective batch: 128
         learning_rate=2e-4,
         lr_scheduler_type="cosine",
+        lr_scheduler_kwargs={"min_lr": 1e-6},  # Prevents catastrophic forgetting
         warmup_steps=100,
         weight_decay=0.01,
         bf16=True,
         logging_steps=50,
-        save_steps=500,
-        save_total_limit=3,
-        dataloader_num_workers=10,  # Use 20 vCPU effectively
+        save_steps=800,               # Reduce I/O overhead
+        save_total_limit=2,
+        dataloader_num_workers=8,
         gradient_checkpointing=True,
-        report_to="none",  # Set to "wandb" to enable W&B
-        # run_name="vasu-llm-stage1",
+        report_to="none",
         remove_unused_columns=False,
-        ddp_find_unused_parameters=False,
         optim="adamw_torch_fused",  # Fused optimizer for MI300X
     )
 

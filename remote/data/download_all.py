@@ -12,6 +12,9 @@ import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 
+# Enable hf_transfer for fast downloads
+os.environ["HF_HUB_ENABLE_HF_TRANSFER"] = "1"
+
 logging.basicConfig(
     level=logging.INFO,
     format="[DOWNLOAD %(asctime)s] %(message)s",
@@ -61,7 +64,9 @@ def download_hf_dataset(name: str, subset: str = None, split: str = None,
         except Exception as e:
             log.warning(f"Attempt {attempt} failed for {name}: {e}")
             if attempt < max_retries:
-                time.sleep(30 * attempt)
+                wait = 2 ** (attempt - 1) * 30  # 30s, 60s, 120s
+                log.info(f"Retrying in {wait}s...")
+                time.sleep(wait)
             else:
                 log.error(f"✗ FAILED after {max_retries} attempts: {name}")
                 return False
@@ -151,8 +156,8 @@ def main():
 
     all_results = []
 
-    # Download in parallel by category using threads
-    with ThreadPoolExecutor(max_workers=4) as executor:
+    # Download in parallel by category — max 2 workers to avoid HF rate limits
+    with ThreadPoolExecutor(max_workers=2) as executor:
         futures = {
             executor.submit(download_category, "LLM", LLM_DATASETS): "LLM",
             executor.submit(download_category, "STT", STT_DATASETS): "STT",

@@ -101,9 +101,10 @@ class STTClient:
         return None
 
     def _trim_silence(self, audio_path, silence_threshold_sec=2.0):
-        """Trim trailing silence from audio file."""
+        """Trim trailing silence from audio file using librosa RMS energy."""
         try:
             import numpy as np
+            import librosa
 
             with wave.open(audio_path, "rb") as wf:
                 frames = wf.readframes(wf.getnframes())
@@ -112,24 +113,16 @@ class STTClient:
             if len(audio) == 0:
                 return None
 
-            # Find last point where energy exceeds threshold
-            frame_size = int(SAMPLE_RATE * 0.1)  # 100ms frames
-            energies = []
-            for i in range(0, len(audio) - frame_size, frame_size):
-                frame = audio[i:i + frame_size]
-                energies.append(np.abs(frame).mean())
+            # Use librosa RMS for proper voice activity detection
+            rms = librosa.feature.rms(y=audio, frame_length=2048, hop_length=512)[0]
+            threshold = max(rms) * 0.01  # 1% of peak — more sensitive than 5%
 
-            if not energies:
+            above = np.where(rms > threshold)[0]
+            if len(above) == 0:
                 return audio_path
 
-            threshold = max(energies) * 0.05  # 5% of max energy
-            last_voice = 0
-            for i, e in enumerate(energies):
-                if e > threshold:
-                    last_voice = i
-
-            # Cut audio after last_voice + silence_threshold
-            cut_sample = int((last_voice + silence_threshold_sec / 0.1) * frame_size)
+            last_voice = above[-1]
+            cut_sample = int((last_voice * 512) + (silence_threshold_sec * SAMPLE_RATE))
             cut_sample = min(cut_sample, len(audio))
 
             if cut_sample < SAMPLE_RATE:  # Less than 1 second of speech
@@ -137,7 +130,9 @@ class STTClient:
 
             trimmed_audio = audio[:cut_sample].astype(np.int16)
 
-            trimmed_path = "/tmp/vasu_trimmed.wav"
+            trimmed_path = audio_path.replace('.wav', '_trimmed.wav')
+            if trimmed_path == audio_path:
+                trimmed_path = "/tmp/vasu_trimmed.wav"
             with wave.open(trimmed_path, "wb") as wf:
                 wf.setnchannels(CHANNELS)
                 wf.setsampwidth(2)
@@ -175,7 +170,6 @@ class STTClient:
             ).input_features
 
             if self._engine == "onnx":
-                import numpy as np
                 predicted_ids = self.model.generate(
                     input_features=np.array(input_features),
                 )

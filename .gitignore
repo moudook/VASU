@@ -1,4 +1,8 @@
 .env
+*.key
+*.pem
+HF_TOKEN
+/remote/logs/
 __pycache__/
 *.pyc
 *.pyo
@@ -7,3 +11,5 @@ dist/
 build/
 .eggs/
 *.log
+/nul
+CODEBASE_REVIEW.md

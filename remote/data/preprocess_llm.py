@@ -325,6 +325,10 @@ def build_stage1_dataset():
     out_path = f"{OUTPUT_DIR}/stage1_sft"
     ds.save_to_disk(out_path)
     log.info(f"✓ Stage 1 dataset: {len(ds)} examples → {out_path}")
+    if len(ds) < 100:
+        log.warning(f"[VALID] Stage 1 dataset very small: {len(ds)} samples. Check downloads.")
+    else:
+        log.info(f"[VALID] Stage 1 dataset has {len(ds)} samples — OK")
 
 
 def build_stage2_dataset():
@@ -401,6 +405,10 @@ def build_stage2_dataset():
     out_path = f"{OUTPUT_DIR}/stage2_tools"
     ds.save_to_disk(out_path)
     log.info(f"✓ Stage 2 dataset: {len(ds)} examples → {out_path}")
+    if len(ds) < 100:
+        log.warning(f"[VALID] Stage 2 dataset very small: {len(ds)} samples. Check downloads.")
+    else:
+        log.info(f"[VALID] Stage 2 dataset has {len(ds)} samples — OK")
 
 
 def build_stage3_dataset():
@@ -457,6 +465,10 @@ def build_stage3_dataset():
     out_path = f"{OUTPUT_DIR}/stage3_reasoning"
     ds.save_to_disk(out_path)
     log.info(f"✓ Stage 3 dataset: {len(ds)} examples → {out_path}")
+    if len(ds) < 100:
+        log.warning(f"[VALID] Stage 3 dataset very small: {len(ds)} samples. Check downloads.")
+    else:
+        log.info(f"[VALID] Stage 3 dataset has {len(ds)} samples — OK")
 
 
 def build_grpo_dataset():
@@ -495,6 +507,10 @@ def build_grpo_dataset():
     out_path = f"{OUTPUT_DIR}/stage4_grpo"
     ds.save_to_disk(out_path)
     log.info(f"✓ Stage 4 dataset: {len(ds)} examples → {out_path}")
+    if len(ds) < 100:
+        log.warning(f"[VALID] Stage 4 (GRPO) dataset very small: {len(ds)} samples. Check downloads.")
+    else:
+        log.info(f"[VALID] Stage 4 dataset has {len(ds)} samples — OK")
 
 
 def main():

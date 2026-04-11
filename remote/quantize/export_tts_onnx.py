@@ -43,27 +43,41 @@ def find_best_checkpoint():
 
 
 def export_piper_onnx(checkpoint_path: str):
-    """Export Piper checkpoint to ONNX using Piper's export script."""
+    """Export Piper checkpoint to ONNX using Piper's own exporter.
+    The resulting ONNX file is self-contained and loadable by piper CLI directly."""
     log.info(f"Exporting Piper checkpoint: {checkpoint_path}")
 
+    # Method 1: Try piper_train.export_onnx module directly (recommended)
+    try:
+        cmd = [
+            "python3", "-m", "piper_train.export_onnx",
+            "--checkpoint", checkpoint_path,
+            "--output", os.path.join(OUTPUT_DIR, "vasu_tts.onnx"),
+        ]
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=300)
+        if result.returncode == 0:
+            log.info("✓ Piper ONNX export via piper_train module successful")
+            return True
+        log.warning(f"piper_train module export failed: {result.stderr[:200]}")
+    except Exception as e:
+        log.warning(f"piper_train module not available: {e}")
+
+    # Method 2: Try Piper's export script directly
     export_script = f"{PIPER_DIR}/src/python/piper_train/export_onnx.py"
-    if not os.path.exists(export_script):
-        log.warning("Piper export script not found. Trying manual export.")
-        return False
+    if os.path.exists(export_script):
+        cmd = [
+            "python3", export_script,
+            checkpoint_path,
+            OUTPUT_DIR,
+        ]
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=300)
+        if result.returncode == 0:
+            log.info("✓ Piper ONNX export via script successful")
+            return True
+        log.warning(f"Piper export script failed: {result.stderr[:200]}")
 
-    cmd = [
-        "python3", export_script,
-        checkpoint_path,
-        OUTPUT_DIR,
-    ]
-
-    result = subprocess.run(cmd, capture_output=True, text=True)
-    if result.returncode == 0:
-        log.info("✓ Piper ONNX export successful")
-        return True
-    else:
-        log.warning(f"Piper export failed: {result.stderr}")
-        return False
+    log.warning("Piper ONNX export failed. Will try PyTorch fallback.")
+    return False
 
 
 def export_pytorch_onnx(model_path: str):

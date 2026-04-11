@@ -136,7 +136,13 @@ def load_teacher_llamacpp(model_path: str):
         return llm, "llamacpp"
     except ImportError:
         log.warning("llama-cpp-python not installed. Installing...")
-        os.system("pip install llama-cpp-python --no-cache-dir")
+        import subprocess as sp
+        result = sp.run(
+            [sys.executable, "-m", "pip", "install", "llama-cpp-python", "--quiet"],
+            capture_output=True, timeout=300,
+        )
+        if result.returncode != 0:
+            raise ImportError(f"llama-cpp-python install failed:\n{result.stderr.decode()}")
         from llama_cpp import Llama
         llm = Llama(
             model_path=model_path,
